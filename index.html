@@ -194,6 +194,12 @@
       white-space: nowrap;
     }
     .phonetic-token .p-zh { font-size: 20px; font-weight: 600; }
+    .phonetic-token.unknown {
+      cursor: pointer;
+      border: 1.5px dashed var(--border-strong);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .phonetic-token.unknown:active { background: var(--accent-light); border-color: var(--accent); }
     .phonetic-token.unknown .p-ro { color: var(--text-light); }
     .phonetic-token.unknown .p-zh { color: var(--text-muted); }
     .phonetic-token.space { background: transparent; padding: 6px 2px; }
@@ -369,6 +375,30 @@
     </div>
   </div>
 
+  <!-- ── Quick-add Modal（撳未收錄字彈出） ── -->
+  <div class="modal-overlay" id="quickAddModal">
+    <div class="modal-sheet">
+      <div class="modal-drag"></div>
+      <div class="modal-title">新增注音</div>
+      <div class="form-group">
+        <label class="form-label">漢字</label>
+        <input class="form-input" id="qaZh" type="text" readonly style="color:var(--text-muted)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">潮汕注音</label>
+        <input class="form-input" id="qaRo" type="text" placeholder="例：kě">
+      </div>
+      <div class="form-group">
+        <label class="form-label">類別（自動建議）</label>
+        <input class="form-input" id="qaCat" list="catList">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="qaCancelBtn">取消</button>
+        <button class="btn-primary" style="flex:2;margin-top:0" id="qaSaveBtn">儲存並更新注音</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Edit Modal ── -->
   <div class="modal-overlay" id="editModal">
     <div class="modal-sheet">
@@ -476,6 +506,18 @@
   }
   function nextId() {
     return vocab.length ? Math.max(...vocab.map(w => w.id)) + 1 : 1;
+  }
+
+  // ── Auto-guess category ──
+  function guessCategory(zh) {
+    if ([...'我你他她它您咱俺'].some(c => zh.includes(c))) return '代詞';
+    if ([...'去來到走搭坐吃喝買賣看聽說問叫要'].some(c => zh === c)) return '動詞';
+    if (/[菜草薯瓜豆芽苗蔥蒜薑韭]/.test(zh)) return '蔬菜';
+    if (/[肉雞魚蝦蟹鴨豬牛羊蚝蛤蜆腸肝腰心]/.test(zh)) return '食材';
+    if (/[粿條粉麵飯餃包餅糕]/.test(zh)) return '麵食';
+    if (/[車機船鐵巴飛高地單摩汽輪]/.test(zh)) return '交通';
+    if (/[校場園店市院廳館所廟街公]/.test(zh)) return '地點';
+    return '其他';
   }
 
   // ── Badge colour per category ──
@@ -646,14 +688,49 @@
       }
     }
 
-    document.getElementById('phoneticTokens').innerHTML = tokens.map(t => {
+    const container = document.getElementById('phoneticTokens');
+    container.innerHTML = tokens.map(t => {
       if (t.space) return `<div class="phonetic-token space"><div class="p-zh"> </div></div>`;
-      return `<div class="phonetic-token${t.known ? '' : ' unknown'}">
+      return `<div class="phonetic-token${t.known ? '' : ' unknown'}" data-zh="${esc(t.zh)}">
         <div class="p-ro">${esc(t.ro)}</div>
         <div class="p-zh">${esc(t.zh)}</div>
       </div>`;
     }).join('');
+    container.querySelectorAll('.phonetic-token.unknown').forEach(el => {
+      el.addEventListener('click', () => openQuickAdd(el.dataset.zh));
+    });
     document.getElementById('resultArea').classList.add('show');
+  });
+
+  // ── Quick-add modal ──
+  function openQuickAdd(zh) {
+    document.getElementById('qaZh').value  = zh;
+    document.getElementById('qaRo').value  = '';
+    document.getElementById('qaCat').value = guessCategory(zh);
+    document.getElementById('quickAddModal').classList.add('open');
+    setTimeout(() => document.getElementById('qaRo').focus(), 300);
+  }
+
+  function closeQuickAdd() {
+    document.getElementById('quickAddModal').classList.remove('open');
+  }
+
+  document.getElementById('quickAddModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('quickAddModal')) closeQuickAdd();
+  });
+  document.getElementById('qaCancelBtn').addEventListener('click', closeQuickAdd);
+
+  document.getElementById('qaSaveBtn').addEventListener('click', () => {
+    const zh  = document.getElementById('qaZh').value.trim();
+    const ro  = document.getElementById('qaRo').value.trim();
+    const cat = document.getElementById('qaCat').value.trim() || '其他';
+    if (!ro) { showToast('請輸入注音'); return; }
+    vocab.push({ id: nextId(), zh, ro, cat });
+    saveData(); renderFilters(); renderVocab();
+    closeQuickAdd();
+    showToast('已新增：' + zh);
+    // 重新分析句子
+    document.getElementById('analyzeBtn').click();
   });
 
   // ── Toast ──
