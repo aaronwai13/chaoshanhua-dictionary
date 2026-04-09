@@ -97,19 +97,15 @@
     .search-input::placeholder { color: var(--text-muted); }
 
     /* ── Filter chips ── */
-    .filter-row {
-      display: flex; gap: 6px; padding-bottom: 10px;
-      overflow-x: auto; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
+    .filter-row { display: flex; gap: 6px; padding-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .filter-row::-webkit-scrollbar { display: none; }
     .chip {
-      flex-shrink: 0;
-      padding: 6px 12px; border-radius: 99px;
+      flex: 1; text-align: center; padding: 6px 4px; border-radius: 99px;
       font-size: 12px; font-weight: 600;
       border: 1.5px solid var(--border-strong);
       background: transparent; color: var(--text-muted);
-      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      cursor: pointer; transition: all 0.15s;
+      white-space: nowrap; min-width: fit-content;
     }
     .chip.active { background: var(--accent); color: white; border-color: var(--accent); }
 
@@ -373,6 +369,35 @@
     </div>
   </div>
 
+  <!-- ── Edit Modal ── -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-sheet">
+      <div class="modal-drag"></div>
+      <div class="modal-title">修改詞語</div>
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label class="form-label">漢字</label>
+        <input class="form-input" id="editZh" type="text">
+      </div>
+      <div class="form-group">
+        <label class="form-label">潮汕注音</label>
+        <input class="form-input" id="editRo" type="text">
+      </div>
+      <div class="form-group">
+        <label class="form-label">類別</label>
+        <input class="form-input" id="editCat" list="catList" placeholder="例：食材">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="deleteBtn">刪除</button>
+        <button class="btn-secondary" id="cancelBtn">取消</button>
+        <button class="btn-primary" style="flex:2;margin-top:0" id="saveEditBtn">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div class="toast" id="toast"></div>
+
 </div><!-- #app -->
 
 <!-- ── Tab Bar ── -->
@@ -396,35 +421,6 @@
     <span>新增</span>
   </button>
 </div>
-
-<!-- ── Edit Modal ── -->
-<div class="modal-overlay" id="editModal">
-  <div class="modal-sheet">
-    <div class="modal-drag"></div>
-    <div class="modal-title">修改詞語</div>
-    <input type="hidden" id="editId">
-    <div class="form-group">
-      <label class="form-label">漢字</label>
-      <input class="form-input" id="editZh" type="text">
-    </div>
-    <div class="form-group">
-      <label class="form-label">潮汕注音</label>
-      <input class="form-input" id="editRo" type="text">
-    </div>
-    <div class="form-group">
-      <label class="form-label">類別</label>
-      <input class="form-input" id="editCat" list="catList" placeholder="例：食材">
-    </div>
-    <div class="modal-actions">
-      <button class="btn-danger" id="deleteBtn">刪除</button>
-      <button class="btn-secondary" id="cancelBtn">取消</button>
-      <button class="btn-primary" style="flex:2;margin-top:0" id="saveEditBtn">儲存</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── Toast ── -->
-<div class="toast" id="toast"></div>
 
 <script>
   // ── Default vocabulary ──
