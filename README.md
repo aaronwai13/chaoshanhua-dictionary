@@ -15,6 +15,9 @@
 
 ```text
 .
+├── apple-touch-icon.png
+├── icon-192.png
+├── icon.svg
 ├── index.html
 ├── manifest.json
 └── sw.js
@@ -22,7 +25,7 @@
 
 ## 使用方式
 
-直接打開 [index.html](/Users/kammingwai/Documents/App/chaoshanhua/index.html) 就可以使用。
+直接打開 [index.html](/Users/kammingwai/Documents/App/chaoshanhua-dictionary/index.html) 就可以使用。
 
 如果要本地開發，可以在 repo 目錄開一個簡單靜態 server，例如：
 
@@ -70,5 +73,5 @@ python3 -m http.server 8000
 ## 備註
 
 - app 名稱已統一為「潮汕話詞庫」
-- 預設唔使用 custom PWA icon
+- repo 內包含 `icon.svg`、`icon-192.png` 同 `apple-touch-icon.png` 供 PWA / 主畫面圖示使用
 - service worker 只做基本快取，目標係簡單直接

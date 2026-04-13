@@ -897,7 +897,10 @@
     ).join('');
     row.querySelectorAll('.chip').forEach(btn => {
       btn.addEventListener('click', () => {
-        renameCategory(btn.dataset.cat);
+        activeFilter = btn.dataset.cat;
+        renderFilterSelect();
+        renderFilters();
+        renderVocab();
       });
     });
   }
