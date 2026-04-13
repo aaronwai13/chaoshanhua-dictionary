@@ -2,11 +2,10 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>潮汕話學習</title>
 
   <link rel="manifest" href="./manifest.json">
-  <link rel="apple-touch-icon" href="./icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="潮汕話">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -493,19 +492,37 @@
   ];
 
   // ── State ──
+  const STORAGE_KEY = 'teochew_vocab_v1';
   let vocab = [];
   let activeFilter = '全部';
 
   // ── Storage ──
   function loadData() {
-    const saved = localStorage.getItem('teochew_vocab_v1');
-    vocab = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_VOCAB));
+    const fallback = JSON.parse(JSON.stringify(DEFAULT_VOCAB));
+
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        vocab = fallback;
+        return;
+      }
+
+      const parsed = JSON.parse(saved);
+      vocab = Array.isArray(parsed) ? parsed : fallback;
+    } catch (err) {
+      localStorage.removeItem(STORAGE_KEY);
+      vocab = fallback;
+      setTimeout(() => showToast('本地資料讀取失敗，已回復預設詞庫'), 80);
+    }
   }
   function saveData() {
-    localStorage.setItem('teochew_vocab_v1', JSON.stringify(vocab));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(vocab));
   }
   function nextId() {
     return vocab.length ? Math.max(...vocab.map(w => w.id)) + 1 : 1;
+  }
+  function findWordByZh(zh) {
+    return vocab.find(w => w.zh === zh);
   }
 
   // ── Auto-guess category ──
@@ -605,12 +622,19 @@
     const ro  = document.getElementById('addRo').value.trim();
     const cat = document.getElementById('addCat').value.trim() || '其他';
     if (!zh || !ro) { showToast('請填寫漢字同注音'); return; }
-    vocab.push({ id: nextId(), zh, ro, cat });
+    const existing = findWordByZh(zh);
+    if (existing) {
+      existing.ro = ro;
+      existing.cat = cat;
+      showToast('已更新現有詞語：' + zh);
+    } else {
+      vocab.push({ id: nextId(), zh, ro, cat });
+      showToast('已新增：' + zh);
+    }
     saveData(); renderFilters(); renderVocab();
     document.getElementById('addZh').value = '';
     document.getElementById('addRo').value = '';
     document.getElementById('addCat').value = '';
-    showToast('已新增：' + zh);
     switchTab('Vocab');
   });
 
@@ -725,10 +749,17 @@
     const ro  = document.getElementById('qaRo').value.trim();
     const cat = document.getElementById('qaCat').value.trim() || '其他';
     if (!ro) { showToast('請輸入注音'); return; }
-    vocab.push({ id: nextId(), zh, ro, cat });
+    const existing = findWordByZh(zh);
+    if (existing) {
+      existing.ro = ro;
+      existing.cat = cat;
+      showToast('已更新現有詞語：' + zh);
+    } else {
+      vocab.push({ id: nextId(), zh, ro, cat });
+      showToast('已新增：' + zh);
+    }
     saveData(); renderFilters(); renderVocab();
     closeQuickAdd();
-    showToast('已新增：' + zh);
     // 重新分析句子
     document.getElementById('analyzeBtn').click();
   });
