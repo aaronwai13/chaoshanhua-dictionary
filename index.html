@@ -222,6 +222,38 @@
     .form-input:focus { border-color: var(--accent); }
     .form-input::placeholder { color: var(--text-muted); }
 
+    .backup-panel {
+      margin-top: 24px;
+      padding: 14px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .backup-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 8px;
+    }
+    .backup-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .backup-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .backup-actions .btn-secondary,
+    .backup-actions .btn-primary {
+      margin-top: 0;
+    }
+
     /* ── Buttons ── */
     .btn-primary {
       display: block; width: 100%; padding: 13px;
@@ -371,6 +403,16 @@
         </datalist>
       </div>
       <button class="btn-primary" id="addBtn">儲存詞語</button>
+
+      <div class="backup-panel">
+        <div class="backup-title">詞庫備份</div>
+        <p class="backup-text">匯出目前詞庫做備份；如果主畫面 app 或瀏覽器資料被清，可以用 JSON 檔匯入還原。</p>
+        <div class="backup-actions">
+          <button class="btn-secondary" id="exportBtn">匯出詞庫</button>
+          <button class="btn-primary" id="importBtn">匯入詞庫</button>
+        </div>
+        <input id="importFileInput" type="file" accept="application/json,.json" hidden>
+      </div>
     </div>
   </div>
 
@@ -524,6 +566,42 @@
   function findWordByZh(zh) {
     return vocab.find(w => w.zh === zh);
   }
+  function downloadFile(filename, content, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+  function normalizeImportedVocab(input) {
+    if (!Array.isArray(input)) return null;
+
+    const seen = new Set();
+    const normalized = [];
+
+    input.forEach(item => {
+      if (!item || typeof item !== 'object') return;
+
+      const zh = String(item.zh || '').trim();
+      const ro = String(item.ro || '').trim();
+      const cat = String(item.cat || '其他').trim() || '其他';
+
+      if (!zh || !ro || seen.has(zh)) return;
+      seen.add(zh);
+      normalized.push({
+        id: normalized.length + 1,
+        zh,
+        ro,
+        cat
+      });
+    });
+
+    return normalized.length ? normalized : null;
+  }
 
   // ── Auto-guess category ──
   function guessCategory(zh) {
@@ -636,6 +714,51 @@
     document.getElementById('addRo').value = '';
     document.getElementById('addCat').value = '';
     switchTab('Vocab');
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const payload = {
+      app: '潮汕話學習',
+      exported_at: new Date().toISOString(),
+      version: 1,
+      vocab
+    };
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadFile(`teochew-vocab-backup-${stamp}.json`, JSON.stringify(payload, null, 2), 'application/json');
+    showToast('已匯出詞庫備份');
+  });
+
+  document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importFileInput').click();
+  });
+
+  document.getElementById('importFileInput').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const source = Array.isArray(parsed) ? parsed : parsed.vocab;
+      const imported = normalizeImportedVocab(source);
+
+      if (!imported) {
+        showToast('匯入失敗：JSON 格式唔啱');
+        return;
+      }
+
+      vocab = imported;
+      activeFilter = '全部';
+      saveData();
+      renderFilters();
+      renderVocab();
+      switchTab('Vocab');
+      showToast(`已匯入 ${imported.length} 個詞語`);
+    } catch (err) {
+      showToast('匯入失敗：讀唔到 JSON');
+    } finally {
+      e.target.value = '';
+    }
   });
 
   // ── Edit modal ──
