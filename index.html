@@ -118,6 +118,68 @@
       padding: 8px 16px 2px;
       font-family: 'DM Mono', monospace;
     }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 8px 16px 0;
+    }
+    .toolbar-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border-strong);
+      background: var(--white);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+    .toolbar-btn:active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .audit-panel {
+      margin: 8px 16px 0;
+      padding: 14px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      display: none;
+    }
+    .audit-panel.show { display: block; }
+    .audit-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 10px;
+    }
+    .audit-summary {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+    .audit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .audit-item {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .audit-item:first-child {
+      padding-top: 0;
+      border-top: none;
+    }
     .word-list { padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 9px; }
     .word-card {
       background: var(--white);
@@ -135,13 +197,15 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .badge {
-      font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
-      font-family: 'DM Mono', monospace; display: inline-block; margin-top: 4px;
+      font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 999px;
+      font-family: 'DM Mono', monospace; display: inline-flex; align-items: center;
+      margin-top: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted);
+      cursor: pointer;
     }
-    .badge-green { background: var(--green-light); color: var(--green); }
-    .badge-amber { background: var(--amber-light); color: var(--amber); }
-    .badge-red   { background: var(--red-light);   color: var(--red); }
-    .badge-blue  { background: var(--accent-light); color: var(--accent); }
+    .badge:active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     .word-edit-btn {
       width: 32px; height: 32px; border-radius: 8px;
       border: 1.5px solid var(--border);
@@ -253,6 +317,12 @@
     .backup-actions .btn-primary {
       margin-top: 0;
     }
+    .category-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
 
     /* ── Buttons ── */
     .btn-primary {
@@ -360,6 +430,14 @@
       <div class="filter-row" id="filterRow"></div>
     </div>
     <div class="count-bar" id="countBar"></div>
+    <div class="toolbar">
+      <button class="toolbar-btn" id="auditCategoriesBtn">檢查分類</button>
+    </div>
+    <div class="audit-panel" id="auditPanel">
+      <div class="audit-title">分類檢查</div>
+      <div class="audit-summary" id="auditSummary"></div>
+      <div class="audit-list" id="auditList"></div>
+    </div>
     <div class="word-list" id="wordList"></div>
   </div>
 
@@ -387,20 +465,21 @@
     <div class="add-wrap">
       <div class="form-group">
         <label class="form-label">漢字</label>
-        <input class="form-input" id="addZh" type="text" placeholder="例：猪肉">
+        <input class="form-input" id="addZh" type="text">
       </div>
       <div class="form-group">
         <label class="form-label">潮汕注音</label>
-        <input class="form-input" id="addRo" type="text" placeholder="例：dē nīk">
+        <input class="form-input" id="addRo" type="text">
       </div>
       <div class="form-group">
         <label class="form-label">類別</label>
-        <input class="form-input" id="addCat" list="catList" placeholder="例：食材">
+        <input class="form-input" id="addCat" list="catList">
         <datalist id="catList">
           <option value="食材"><option value="蔬菜"><option value="麵食">
           <option value="常用語"><option value="交通"><option value="代詞">
           <option value="動詞"><option value="地點"><option value="其他">
         </datalist>
+        <p class="category-hint" id="addCatHint">輸入漢字後會自動建議類別；你都可以直接改成新類別。</p>
       </div>
       <button class="btn-primary" id="addBtn">儲存詞語</button>
 
@@ -537,6 +616,7 @@
   const STORAGE_KEY = 'teochew_vocab_v1';
   let vocab = [];
   let activeFilter = '全部';
+  let addCatTouched = false;
 
   // ── Storage ──
   function loadData() {
@@ -565,6 +645,16 @@
   }
   function findWordByZh(zh) {
     return vocab.find(w => w.zh === zh);
+  }
+  function uniqueCategories() {
+    return [...new Set(vocab.map(w => String(w.cat || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-HK'));
+  }
+  function categoryExists(cat) {
+    return uniqueCategories().includes(cat);
+  }
+  function normalizeCategory(cat) {
+    const trimmed = String(cat || '').trim();
+    return trimmed || '其他';
   }
   function downloadFile(filename, content, type) {
     const blob = new Blob([content], { type });
@@ -614,13 +704,93 @@
     if (/[校場園店市院廳館所廟街公]/.test(zh)) return '地點';
     return '其他';
   }
+  function suggestedCategory(zh) {
+    const guessed = guessCategory(zh);
+    return categoryExists(guessed) ? guessed : guessed;
+  }
+  function updateCategoryOptions() {
+    const list = document.getElementById('catList');
+    list.innerHTML = uniqueCategories().map(cat => `<option value="${esc(cat)}">`).join('');
+  }
+  function updateAddCategoryHint(cat) {
+    const hint = document.getElementById('addCatHint');
+    if (!cat) {
+      hint.textContent = '輸入漢字後會自動建議類別；你都可以直接改成新類別。';
+      return;
+    }
+    hint.textContent = categoryExists(cat)
+      ? `已自動配對到現有類別「${cat}」。`
+      : `已建議新類別「${cat}」，儲存後會自動加入分類。`;
+  }
+  function syncAddCategoryFromZh() {
+    const zh = document.getElementById('addZh').value.trim();
+    if (!zh || addCatTouched) {
+      updateAddCategoryHint(document.getElementById('addCat').value.trim());
+      return;
+    }
+    const cat = suggestedCategory(zh);
+    document.getElementById('addCat').value = cat;
+    updateAddCategoryHint(cat);
+  }
+  function showAuditResults(changes) {
+    const panel = document.getElementById('auditPanel');
+    const summary = document.getElementById('auditSummary');
+    const list = document.getElementById('auditList');
 
-  // ── Badge colour per category ──
-  function catBadge(cat) {
-    const map = { '食材':'badge-red', '蔬菜':'badge-green', '麵食':'badge-amber',
-                  '常用語':'badge-blue', '交通':'badge-blue', '代詞':'badge-blue',
-                  '動詞':'badge-amber', '地點':'badge-green' };
-    return map[cat] || 'badge-blue';
+    panel.classList.add('show');
+
+    if (!changes.length) {
+      summary.textContent = '已檢查目前全部詞語，未發現需要修正的分類。';
+      list.innerHTML = '';
+      return;
+    }
+
+    summary.textContent = `已檢查並自動修正 ${changes.length} 個詞語分類。`;
+    list.innerHTML = changes.map(change => `
+      <div class="audit-item">「${esc(change.zh)}」由 ${esc(change.from)} 改為 ${esc(change.to)}</div>
+    `).join('');
+  }
+  function auditCategories() {
+    const changes = [];
+
+    vocab.forEach(word => {
+      const current = normalizeCategory(word.cat);
+      const suggested = guessCategory(word.zh);
+      if (current !== suggested) {
+        changes.push({ zh: word.zh, from: current, to: suggested });
+        word.cat = suggested;
+      }
+    });
+
+    if (changes.length) {
+      saveData();
+      renderFilters();
+      renderVocab();
+      updateCategoryOptions();
+      showAuditResults(changes);
+      showToast(`已修正 ${changes.length} 個詞語分類`);
+      return;
+    }
+
+    showAuditResults([]);
+    showToast('目前分類全部正常');
+  }
+  function editWordCategory(id) {
+    const word = vocab.find(item => item.id === id);
+    if (!word) return;
+
+    const input = prompt('修改類別', word.cat);
+    if (input === null) return;
+
+    const nextCategory = normalizeCategory(input);
+    if (nextCategory === normalizeCategory(word.cat)) return;
+
+    word.cat = nextCategory;
+    saveData();
+    renderFilters();
+    renderVocab();
+    updateCategoryOptions();
+    showToast(`已更新「${word.zh}」類別`);
   }
 
   // ── Escape helpers ──
@@ -645,7 +815,7 @@
   // ── Filter chips ──
   function renderFilters() {
     const row = document.getElementById('filterRow');
-    const cats = ['全部', ...new Set(vocab.map(w => w.cat))];
+    const cats = ['全部', ...uniqueCategories()];
     row.innerHTML = cats.map(c =>
       `<button class="chip${activeFilter === c ? ' active' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`
     ).join('');
@@ -677,7 +847,7 @@
         <div class="word-zh">${esc(w.zh)}</div>
         <div class="word-info">
           <div class="word-ro">${esc(w.ro)}</div>
-          <span class="badge ${catBadge(w.cat)}">${esc(w.cat)}</span>
+          <button class="badge word-cat-btn" data-id="${w.id}" type="button">${esc(w.cat)}</button>
         </div>
         <button class="word-edit-btn" data-id="${w.id}" aria-label="修改">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -690,15 +860,27 @@
     el.querySelectorAll('.word-edit-btn').forEach(btn => {
       btn.addEventListener('click', () => openEdit(parseInt(btn.dataset.id)));
     });
+    el.querySelectorAll('.word-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => editWordCategory(parseInt(btn.dataset.id)));
+    });
   }
 
   document.getElementById('searchInput').addEventListener('input', renderVocab);
+  document.getElementById('auditCategoriesBtn').addEventListener('click', auditCategories);
+  document.getElementById('addZh').addEventListener('input', syncAddCategoryFromZh);
+  document.getElementById('addCat').addEventListener('input', () => {
+    addCatTouched = true;
+    updateAddCategoryHint(document.getElementById('addCat').value.trim());
+  });
+  document.getElementById('addCat').addEventListener('focus', () => {
+    if (!document.getElementById('addCat').value.trim()) addCatTouched = false;
+  });
 
   // ── Add word ──
   document.getElementById('addBtn').addEventListener('click', () => {
     const zh  = document.getElementById('addZh').value.trim();
     const ro  = document.getElementById('addRo').value.trim();
-    const cat = document.getElementById('addCat').value.trim() || '其他';
+    const cat = normalizeCategory(document.getElementById('addCat').value);
     if (!zh || !ro) { showToast('請填寫漢字同注音'); return; }
     const existing = findWordByZh(zh);
     if (existing) {
@@ -709,11 +891,13 @@
       vocab.push({ id: nextId(), zh, ro, cat });
       showToast('已新增：' + zh);
     }
-    saveData(); renderFilters(); renderVocab();
+    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
     document.getElementById('addZh').value = '';
     document.getElementById('addRo').value = '';
     document.getElementById('addCat').value = '';
-    switchTab('Vocab');
+    addCatTouched = false;
+    updateAddCategoryHint('');
+    document.getElementById('addZh').focus();
   });
 
   document.getElementById('exportBtn').addEventListener('click', () => {
@@ -752,6 +936,7 @@
       saveData();
       renderFilters();
       renderVocab();
+      updateCategoryOptions();
       switchTab('Vocab');
       showToast(`已匯入 ${imported.length} 個詞語`);
     } catch (err) {
@@ -785,12 +970,12 @@
     const id  = parseInt(document.getElementById('editId').value);
     const zh  = document.getElementById('editZh').value.trim();
     const ro  = document.getElementById('editRo').value.trim();
-    const cat = document.getElementById('editCat').value.trim() || '其他';
+    const cat = normalizeCategory(document.getElementById('editCat').value);
     if (!zh || !ro) { showToast('請填寫漢字同注音'); return; }
     const w = vocab.find(x => x.id === id);
     if (!w) return;
     w.zh = zh; w.ro = ro; w.cat = cat;
-    saveData(); renderFilters(); renderVocab();
+    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
     closeModal();
     showToast('已更新：' + zh);
   });
@@ -801,7 +986,7 @@
     if (!w) return;
     if (!confirm(`確定刪除「${w.zh}」？`)) return;
     vocab = vocab.filter(x => x.id !== id);
-    saveData(); renderFilters(); renderVocab();
+    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
     closeModal();
     showToast('已刪除：' + w.zh);
   });
@@ -853,7 +1038,7 @@
   function openQuickAdd(zh) {
     document.getElementById('qaZh').value  = zh;
     document.getElementById('qaRo').value  = '';
-    document.getElementById('qaCat').value = guessCategory(zh);
+    document.getElementById('qaCat').value = suggestedCategory(zh);
     document.getElementById('quickAddModal').classList.add('open');
     setTimeout(() => document.getElementById('qaRo').focus(), 300);
   }
@@ -870,7 +1055,7 @@
   document.getElementById('qaSaveBtn').addEventListener('click', () => {
     const zh  = document.getElementById('qaZh').value.trim();
     const ro  = document.getElementById('qaRo').value.trim();
-    const cat = document.getElementById('qaCat').value.trim() || '其他';
+    const cat = normalizeCategory(document.getElementById('qaCat').value);
     if (!ro) { showToast('請輸入注音'); return; }
     const existing = findWordByZh(zh);
     if (existing) {
@@ -881,7 +1066,7 @@
       vocab.push({ id: nextId(), zh, ro, cat });
       showToast('已新增：' + zh);
     }
-    saveData(); renderFilters(); renderVocab();
+    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
     closeQuickAdd();
     // 重新分析句子
     document.getElementById('analyzeBtn').click();
@@ -901,6 +1086,8 @@
   loadData();
   renderFilters();
   renderVocab();
+  updateCategoryOptions();
+  updateAddCategoryHint('');
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
