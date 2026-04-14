@@ -436,6 +436,7 @@
     </div>
     <div class="count-bar" id="countBar"></div>
     <div class="toolbar">
+      <button class="toolbar-btn" id="refreshBtn">重新整理</button>
       <button class="toolbar-btn" id="auditCategoriesBtn">檢查分類</button>
     </div>
     <div class="audit-panel" id="auditPanel">
@@ -622,7 +623,7 @@
   ];
 
   // ── State ──
-  const APP_VERSION = '2026.04.14.2';
+  const APP_VERSION = '2026.04.14.3';
   const STORAGE_KEY = 'teochew_vocab_v1';
   const CATEGORY_REPAIR_MAP = {
     '粉肠': '食材',
@@ -744,6 +745,8 @@
   function guessCategory(zh) {
     const text = String(zh || '').trim();
     if (!text) return null;
+
+    if (CATEGORY_REPAIR_MAP[text]) return CATEGORY_REPAIR_MAP[text];
 
     if ([...'我你他她它您咱俺'].some(c => text.includes(c))) return '代詞';
     if ([...'去來到走搭坐吃喝買賣看聽說问問叫要用'].some(c => text === c)) return '動詞';
@@ -911,9 +914,15 @@
     ).join('');
     row.querySelectorAll('.chip').forEach(btn => {
       btn.addEventListener('click', () => {
-        activeFilter = btn.dataset.cat;
-        renderFilters();
-        renderVocab();
+        const cat = btn.dataset.cat;
+        if (cat === '全部') {
+          activeFilter = '全部';
+          renderFilters();
+          renderVocab();
+          return;
+        }
+
+        renameCategory(cat);
       });
     });
   }
@@ -957,6 +966,20 @@
   }
 
   document.getElementById('searchInput').addEventListener('input', renderVocab);
+  document.getElementById('refreshBtn').addEventListener('click', async () => {
+    showToast('重新整理中...');
+
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) await registration.update();
+      } catch (err) {
+        // Fall back to a normal reload if SW update check fails.
+      }
+    }
+
+    setTimeout(() => window.location.reload(), 120);
+  });
   document.getElementById('auditCategoriesBtn').addEventListener('click', auditCategories);
   document.getElementById('addZh').addEventListener('input', syncAddCategoryFromZh);
   document.getElementById('addCat').addEventListener('input', () => {
