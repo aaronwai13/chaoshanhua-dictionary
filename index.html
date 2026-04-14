@@ -913,16 +913,41 @@
       `<button class="chip${activeFilter === c ? ' active' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`
     ).join('');
     row.querySelectorAll('.chip').forEach(btn => {
+      const cat = btn.dataset.cat;
+      let pressTimer = null;
+      let renamed = false;
+
+      const startPress = () => {
+        if (cat === '全部') return;
+        clearTimeout(pressTimer);
+        renamed = false;
+        pressTimer = setTimeout(() => {
+          renamed = true;
+          renameCategory(cat);
+        }, 450);
+      };
+
+      const cancelPress = () => {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      };
+
+      btn.addEventListener('mousedown', startPress);
+      btn.addEventListener('touchstart', startPress, { passive: true });
+      btn.addEventListener('mouseup', cancelPress);
+      btn.addEventListener('mouseleave', cancelPress);
+      btn.addEventListener('touchend', cancelPress);
+      btn.addEventListener('touchcancel', cancelPress);
+
       btn.addEventListener('click', () => {
-        const cat = btn.dataset.cat;
-        if (cat === '全部') {
-          activeFilter = '全部';
-          renderFilters();
-          renderVocab();
+        if (renamed) {
+          renamed = false;
           return;
         }
 
-        renameCategory(cat);
+        activeFilter = cat;
+        renderFilters();
+        renderVocab();
       });
     });
   }
