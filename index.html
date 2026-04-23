@@ -771,7 +771,7 @@
   }
   function suggestedCategory(zh) {
     const guessed = guessCategory(zh);
-    return categoryExists(guessed) ? guessed : guessed;
+    return guessed || '';
   }
   function updateCategoryOptions() {
     const list = document.getElementById('catList');
